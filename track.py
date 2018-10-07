@@ -27,6 +27,7 @@ class NodeTracker:
     ip = self._get_extern_ip_address()
     last_ip = self._get_last_ip_address(node_name)
     if last_ip != ip:
+      logger.info(f"ip address changed from {last_ip} to {ip}")
       self._save_ip_trace(node_name, ip)
   
   def _ensure_cloned(self) -> None:
@@ -43,12 +44,11 @@ class NodeTracker:
       for ip in re.findall( r'[0-9]+(?:\.[0-9]+){3}', source)
     )
     ips_str = ",".join(ips)
-    self.logger.info(f"Discovered ip: {ips_str}")
     return ips_str
   
   def _get_last_ip_address(self, node_name: str) -> Optional[str]:
     try:
-      with open(node_name, "r") as file_:
+      with open(self._log_path(node_name), "r") as file_:
         last_line = list(file_)[-1]
         return last_line[:last_line.index(" ")]
     except FileNotFoundError:
@@ -59,10 +59,13 @@ class NodeTracker:
       urllib.request.urlopen(f"http://{url}", timeout=10).read().decode("utf-8")
       for url in self.ip_sources
     ]
+    
+  def _log_path(self, node_name: str):
+    return f"{self.git_path}/trace/{node_name}"
 
   def _save_ip_trace(self, node_name: str, ip: str) -> None:
     time_ = (datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d %H:%M:%S'))
-    with open(f"{self.git_path}/trace/{node_name}", "a+") as file_:
+    with open(self._log_path(node_name), "a+") as file_:
       file_.write(f"{ip} {time_}\n")
     
 
