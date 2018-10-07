@@ -20,14 +20,22 @@ class NodeTracker:
     self.ip_sources = ip_sources
     self.git_uri = git_uri
     self.git_path = git_path
+
+  def track(self) -> None:
+    self._ensure_cloned()
+    node_name = socket.gethostname()
+    ip = self._get_extern_ip_address()
+    last_ip = self._get_last_ip_address(node_name)
+    if last_ip != ip:
+      self._save_ip_trace(node_name, ip)
   
-  def ensure_cloned(self) -> None:
+  def _ensure_cloned(self) -> None:
     try:
       git.Git(self.git_path).clone(self.git_uri)
     except:
       pass
   
-  def get_extern_ip_address(self):
+  def _get_extern_ip_address(self):
     source_codes = self._get_source_codes()
     ips = set(
       ip
@@ -38,33 +46,24 @@ class NodeTracker:
     self.logger.info(f"Discovered ip: {ips_str}")
     return ips_str
   
-  def get_last_ip_address(self, node_name: str) -> Optional[str]:
+  def _get_last_ip_address(self, node_name: str) -> Optional[str]:
     try:
       with open(node_name, "r") as file_:
         last_line = list(file_)[-1]
         return last_line[:last_line.index(" ")]
     except FileNotFoundError:
       return None
-    
-
-  def track(self) -> None:
-    self.ensure_cloned()
-    node_name = socket.gethostname()
-    ip = self.get_extern_ip_address()
-    last_ip = self.get_last_ip_address(node_name)
-    if last_ip != ip:
-      self.save_ip_trace(node_name, ip)
-  
-  def save_ip_trace(self, node_name: str, ip: str) -> None:
-    time_ = (datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d %H:%M:%S'))
-    with open(f"{self.git_path}/trace/{node_name}", "a+") as file_:
-      file_.write(f"{ip} {time_}\n")
   
   def _get_source_codes(self) -> List[str]:
     return [
       urllib.request.urlopen(f"http://{url}", timeout=10).read().decode("utf-8")
       for url in self.ip_sources
     ]
+
+  def _save_ip_trace(self, node_name: str, ip: str) -> None:
+    time_ = (datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d %H:%M:%S'))
+    with open(f"{self.git_path}/trace/{node_name}", "a+") as file_:
+      file_.write(f"{ip} {time_}\n")
     
 
 def _parse_flags():
