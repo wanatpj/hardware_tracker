@@ -27,8 +27,9 @@ class NodeTracker:
     ip = self._get_extern_ip_address()
     last_ip = self._get_last_ip_address(node_name)
     if last_ip != ip:
-      logger.info(f"ip address changed from {last_ip} to {ip}")
+      self.logger.info(f"ip address changed from {last_ip} to {ip}")
       self._save_ip_trace(node_name, ip)
+      self._push(node_name)
   
   def _ensure_cloned(self) -> None:
     try:
@@ -62,6 +63,12 @@ class NodeTracker:
     
   def _log_path(self, node_name: str):
     return f"{self.git_path}/trace/{node_name}"
+  
+  def _push(self, node_name: str):
+    repo = git.Repo(f"{self.git_path}/trace")
+    repo.index.add([node_name])
+    repo.index.commit("IP update")
+    repo.remote(name='origin').push()
 
   def _save_ip_trace(self, node_name: str, ip: str) -> None:
     time_ = (datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d %H:%M:%S'))
